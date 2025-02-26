@@ -1,0 +1,55 @@
+#!/bin/sh
+
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+
+echo "🔍 Branch name detected: $BRANCH_NAME"
+
+# Ensure the branch name has a slash ("/")
+if [[ "$BRANCH_NAME" != */* ]]; then
+    echo "❌ Branch name does not contain a slash ('/'). Exiting."
+    exit 0
+fi
+
+# Extract branch prefix (before "/") and branch topic (after "/")
+BRANCH_PREFIX=$(echo "$BRANCH_NAME" | cut -d'/' -f1)
+BRANCH_TOPIC=$(echo "$BRANCH_NAME" | cut -d'/' -f2)  # Get the part after "/"
+
+echo "✅ Extracted Prefix: $BRANCH_PREFIX"
+echo "✅ Extracted Topic: $BRANCH_TOPIC"
+
+# Define allowed prefixes
+ALLOWED_PREFIXES=("feature" "fix" "bugfix" "hotfix" "chore" "refactor" "docs" "release")
+
+# Check if prefix is in the allowed list
+if [[ ! " ${ALLOWED_PREFIXES[@]} " =~ " ${BRANCH_PREFIX} " ]]; then
+    echo "❌ Branch prefix '$BRANCH_PREFIX' is not allowed. Exiting."
+    exit 0
+fi
+
+# Set commit prefix based on branch type
+case "$BRANCH_PREFIX" in
+    "feature") COMMIT_BRANCH_PREFIX='feat' ;;
+    "fix" | "bugfix" | "hotfix") COMMIT_BRANCH_PREFIX='fix' ;;
+    "chore") COMMIT_BRANCH_PREFIX='chore' ;;
+    "refactor") COMMIT_BRANCH_PREFIX='ref' ;;
+    "docs") COMMIT_BRANCH_PREFIX='docs' ;;
+    "release") COMMIT_BRANCH_PREFIX='release' ;;
+esac
+
+FINAL_COMMIT_PREFIX="${COMMIT_BRANCH_PREFIX}(${BRANCH_TOPIC}):"
+
+echo "📝 Final Commit Prefix: $FINAL_COMMIT_PREFIX"
+
+# Ensure commit message is updated correctly
+COMMIT_MSG_FILE=$1
+CURRENT_MESSAGE=$(head -n 1 "$COMMIT_MSG_FILE")
+
+echo "✏️ Original commit message: $CURRENT_MESSAGE"
+
+# Only change the commit message if it doesn't already have the correct prefix
+if [[ "$CURRENT_MESSAGE" != "$FINAL_COMMIT_PREFIX"* ]]; then
+    echo "$FINAL_COMMIT_PREFIX $CURRENT_MESSAGE" > "$COMMIT_MSG_FILE"
+    echo "✅ Commit message updated: $(cat "$COMMIT_MSG_FILE")"
+else
+    echo "⚠️ Commit message already has the correct prefix. No changes made."
+fi
